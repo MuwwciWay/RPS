@@ -1,5 +1,5 @@
 import sqlite3
-import ast  # Для безопасного преобразования строки обратно в список
+import json  # Для преобразования списков в JSON и обратно
 
 # Функция для подключения к базе данных
 def get_db_connection():
@@ -22,42 +22,48 @@ def create_table():
     conn.close()
 
 # Функция для сохранения массива в базу данных
-def save_array_to_db(original_arrays, sorted_arrays):
-    conn = get_db_connection()
+
+def save_array_to_db(original_array, sorted_array):
+    # Проверка типа данных
+    if not isinstance(original_array, list):
+        raise ValueError("The original_array must be a list!")
+    if not isinstance(sorted_array, list):
+        raise ValueError("The sorted_array must be a list!")
+
+    conn = sqlite3.connect("arrays.db")
     cursor = conn.cursor()
-    try:
-        cursor.executemany('''
-            INSERT INTO arrays (original_array, sorted_array)
-            VALUES (?, ?)
-        ''', [(str(o), str(s)) for o, s in zip(original_arrays, sorted_arrays)])
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        print(f"Error during database insert: {e}")
-    finally:
-        conn.close()
+    
+    # Преобразуем массивы в строки JSON
+    original_array_str = json.dumps(original_array)
+    sorted_array_str = json.dumps(sorted_array)
+    
+    cursor.execute(
+        "INSERT INTO arrays (original_array, sorted_array) VALUES (?, ?)",
+        (original_array_str, sorted_array_str)
+    )
+    conn.commit()
+    conn.close()
 
 
 
 # Функция для получения всех массивов из базы данных
 def get_all_arrays():
-    conn = get_db_connection()
+    conn = sqlite3.connect("arrays.db")
+    conn.row_factory = sqlite3.Row  # Для возврата строк в виде словарей
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM arrays')
+    cursor.execute("SELECT id, original_array, sorted_array FROM arrays")
     rows = cursor.fetchall()
     conn.close()
-    
-    # Преобразуем строки обратно в массивы
-    arrays = []
+
+    result = []
     for row in rows:
-        original_array = ast.literal_eval(row['original_array'])  # Преобразование строки в список
-        sorted_array = ast.literal_eval(row['sorted_array'])      # Преобразование строки в список
-        arrays.append({
-            "id": row['id'],
-            "original_array": original_array,
-            "sorted_array": sorted_array
+        result.append({
+            "id": row["id"],
+            "original_array": json.loads(row["original_array"]),  # Преобразуем обратно в массив
+            "sorted_array": json.loads(row["sorted_array"])
         })
-    return arrays
+    return result
+
 
 # Функция для очистки базы данных
 def clear_database():

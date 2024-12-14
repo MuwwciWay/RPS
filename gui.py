@@ -276,13 +276,13 @@ def show_all_arrays():
         messagebox.showerror("Ошибка", f"Произошла ошибка при загрузке данных: {str(e)}")
 
 
-# Структура меню
+# Структура меню    
 menu_buttons = [
     ("Главная", show_instructions, "#ffe5b4"),
     ("Ввести массив", show_input_array, "#ffcc99"),
     ("Сгенерировать массив", generate_and_display, "#ffcc99"),
     ("Загрузить массив из БД", load_array_from_db, "#ffcc99"),
-    ("Показать все массивы", show_all_arrays, "#ffcc99")  
+    ("Показать все массивы", show_all_arrays, "#f2f2f2")  
 ]
 
 
