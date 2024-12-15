@@ -1,108 +1,127 @@
-import random
 import time
-import aiohttp
-import asyncio
-import logging
+import random
+from fastapi.testclient import TestClient
+from main import app
+import json
 
-# Настройка логирования
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+client = TestClient(app)
 
-BASE_URL = "http://localhost:8000"
+def generate_random_array(size: int) -> list[int]:
+    return [random.randint(0, 1000) for _ in range(size)]
 
-def generate_random_array():
-    """Генерация случайного массива."""
-    array = [random.randint(1, 100) for _ in range(random.randint(5, 15))]
-    return array
-
-async def async_add_and_sort_array(session, arr):
-    """Отправка массива, сортировка и удаление асинхронно."""
+# Тест добавления 100 массивов
+def test_add_100_arrays():
+    success_flag = True
+    start_time = time.time()
     try:
-        # Сортировка массива
-        start_time = time.time()
-        sorted_array = sorted(arr)
-        sorting_time = time.time() - start_time
-        
-        # Отправка отсортированного массива в базу данных
-        start_time = time.time()
-        async with session.post(f"{BASE_URL}/sort_array", json={"arr": sorted_array}) as response:
-            response.raise_for_status()  # Это выбросит исключение при ошибке статуса
-        db_post_time = time.time() - start_time
-
-        # Удаление массива после его добавления
-        start_time = time.time()
-        async with session.delete(f"{BASE_URL}/delete_array/{sorted_array}") as response:
-            response.raise_for_status()  # Это выбросит исключение при ошибке статуса
-        db_delete_time = time.time() - start_time
-        
-        # Общая затраченное время
-        total_time = sorting_time + db_post_time + db_delete_time
-        return total_time
-        
-    except aiohttp.ClientResponseError as e:
-        logging.error(f"Failed to process array {arr}. Status code: {e.status}, message: {e.message}")
+        for _ in range(100):
+            arr = generate_random_array(random.randint(1, 100))  # случайный размер массива
+            sorted_arr = sorted(arr)
+            response = client.post("/sort_array", json={"arr": arr})
+            assert response.status_code == 200
     except Exception as e:
-        logging.error(f"Error occurred while processing array {arr}: {e}")
+        success_flag = False
+        print(f"Error during adding arrays: {e}")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    return {"success": success_flag, "elapsed_time": elapsed_time}
 
-async def test_add_and_process_arrays_async(num_arrays):
-    """Тест для добавления и обработки массивов в базе данных (асинхронно)."""
-    async with aiohttp.ClientSession() as session:
-        times = []
-        tasks = [async_add_and_sort_array(session, generate_random_array()) for _ in range(num_arrays)]
-        results = await asyncio.gather(*tasks)
-        
-        # Собираем время для каждого массива
-        times = [result for result in results if result is not None]
-        
-        # Среднее время
-        average_time = sum(times) / len(times) if times else 0
-        return average_time
-
-async def test_clear_database_async():
-    """Тест для очистки базы данных (асинхронно)."""
-    async with aiohttp.ClientSession() as session:
-        await async_clear_database(session)
-
-async def async_clear_database(session):
-    """Очистка базы данных асинхронно."""
+# Тест добавления 1000 массивов
+def test_add_1000_arrays():
+    success_flag = True
+    start_time = time.time()
     try:
-        logging.debug("Sending request to clear the database.")
-        async with session.delete(f"{BASE_URL}/clear_database") as response:
-            response.raise_for_status()  # Это выбросит исключение при ошибке статуса
-            logging.info("Database cleared successfully.")
-    except aiohttp.ClientResponseError as e:
-        logging.error(f"Failed to clear database. Status code: {e.status}, message: {e.message}")
+        for _ in range(1000):
+            arr = generate_random_array(random.randint(1, 100))  # случайный размер массива
+            sorted_arr = sorted(arr)
+            response = client.post("/sort_array", json={"arr": arr})
+            assert response.status_code == 200
     except Exception as e:
-        logging.error(f"Error occurred while clearing database: {e}")
+        success_flag = False
+        print(f"Error during adding arrays: {e}")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    return {"success": success_flag, "elapsed_time": elapsed_time}
 
-async def run_tests_async():
-    """Запуск всех тестов (асинхронно)."""
-    
-    # Добавляем и обрабатываем 100 массивов
-    logging.info("\nRunning async test: Add and process 100 arrays...")
-    avg_time_100 = await test_add_and_process_arrays_async(100)
-    logging.info(f"Average time for 100 arrays: {avg_time_100:.5f} seconds")
+# Тест добавления 10000 массивов
+def test_add_10000_arrays():
+    success_flag = True
+    start_time = time.time()
+    try:
+        for _ in range(10000):
+            arr = generate_random_array(random.randint(1, 100))  # случайный размер массива
+            sorted_arr = sorted(arr)
+            response = client.post("/sort_array", json={"arr": arr})
+            assert response.status_code == 200
+    except Exception as e:
+        success_flag = False
+        print(f"Error during adding arrays: {e}")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    return {"success": success_flag, "elapsed_time": elapsed_time}
 
-    # Очистка базы данных
-    logging.info("\nClearing database after 100 arrays...")
-    await test_clear_database_async()
+# Тест выгрузки и сортировки 100 случайных массивов из базы данных
+def test_sorting_100_random_arrays():
+    success_flag = True
+    start_time = time.time()
+    try:
+        response = client.get("/get_all_arrays")
+        assert response.status_code == 200
+        arrays = response.json()['arrays']
+        random_arrays = random.sample(arrays, 100)
+        for array in random_arrays:
+            arr = array['original_array']
+            sorted_arr = sorted(arr)
+            # Пример сортировки (уже сохраненной) через API
+            response = client.post("/sort_array", json={"arr": arr})
+            assert response.status_code == 200
+    except Exception as e:
+        success_flag = False
+        print(f"Error during sorting 100 arrays: {e}")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    average_time_per_array = elapsed_time / 100
+    return {
+        "success": success_flag, 
+        "elapsed_time": elapsed_time,
+        "average_time_per_array": average_time_per_array
+    }
 
-    # Добавляем и обрабатываем 1000 массивов
-    logging.info("\nRunning async test: Add and process 1000 arrays...")
-    avg_time_1000 = await test_add_and_process_arrays_async(1000)
-    logging.info(f"Average time for 1000 arrays: {avg_time_1000:.5f} seconds")
+# Тест очистки базы данных
+def test_clear_database():
+    success_flag = True
+    start_time = time.time()
+    try:
+        response = client.delete("/clear_database")
+        assert response.status_code == 200
+    except Exception as e:
+        success_flag = False
+        print(f"Error during clearing the database: {e}")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    return {"success": success_flag, "elapsed_time": elapsed_time}
 
-    # Очистка базы данных
-    logging.info("\nClearing database after 1000 arrays...")
-    await test_clear_database_async()
+# Запуск тестов для базы на 100, 1000 и 10000 записей
+def run_tests():
+    # Тест для 100 записей
+    result_100 = test_add_100_arrays()
+    print(f"Test 100 arrays: Success: {result_100['success']}, Elapsed Time: {result_100['elapsed_time']}")
 
-    # Добавляем и обрабатываем 10000 массивов
-    logging.info("\nRunning async test: Add and process 10000 arrays...")
-    avg_time_10000 = await test_add_and_process_arrays_async(10000)
-    logging.info(f"Average time for 10000 arrays: {avg_time_10000:.5f} seconds")
+    # Тест для 1000 записей
+    result_1000 = test_add_1000_arrays()
+    print(f"Test 1000 arrays: Success: {result_1000['success']}, Elapsed Time: {result_1000['elapsed_time']}")
 
-    # Очистка базы данных
-    logging.info("\nClearing database after 10000 arrays...")
-    await test_clear_database_async()
+    # Тест для 10000 записей
+    result_10000 = test_add_10000_arrays()
+    print(f"Test 10000 arrays: Success: {result_10000['success']}, Elapsed Time: {result_10000['elapsed_time']}")
+
+    # Тест для выгрузки и сортировки 100 случайных массивов
+    result_sorting_100 = test_sorting_100_random_arrays()
+    print(f"Test sorting 100 random arrays: Success: {result_sorting_100['success']}, Elapsed Time: {result_sorting_100['elapsed_time']}, Average Time Per Array: {result_sorting_100['average_time_per_array']}")
+
+    # Тест для очистки базы данных
+    result_clear_db = test_clear_database()
+    print(f"Test clear database: Success: {result_clear_db['success']}, Elapsed Time: {result_clear_db['elapsed_time']}")
 
 if __name__ == "__main__":
-    asyncio.run(run_tests_async())
+    run_tests()
